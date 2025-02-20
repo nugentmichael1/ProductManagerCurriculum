@@ -1,0 +1,24 @@
+- name: Install and Start Nginx
+  hosts: all
+  become: yes  # Run commands as sudo
+  tasks:
+    - name: Install Nginx
+      dnf:
+        name: nginx
+        state: present
+
+    - name: Enable and start Nginx
+      systemd:
+        name: nginx
+        enabled: yes
+        state: started
+
+    - name: Open HTTP Port in Firewalld (Optional)
+      firewalld:
+        service: http
+        permanent: yes
+        state: enabled
+        immediate: yes
+      when: ansible_facts['os_family'] == "RedHat"
+
+...

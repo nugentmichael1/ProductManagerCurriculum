@@ -1,0 +1,12 @@
+---
+- name: Get hostname from remote node
+  hosts: all
+  tasks:
+    - name: Run a shell command with $HOSTNAME
+      shell: "echo 'This is running on $HOSTNAME'"
+      register: hostname_output
+
+    - name: Print output
+      debug:
+        msg: "{{ hostname_output.stdout }}"
+...
