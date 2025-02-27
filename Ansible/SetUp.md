@@ -168,3 +168,101 @@ This ensures that **only the owner** can read and use the key, preventing SSH fr
 ---
 
 Now, the **key pair file** is safely stored on the **controller node**, ready to be used for **SSH access** to the slave nodes from the controller. 🚀
+
+The **Amazon Linux 2023 AMI** does not come with a default **Ansible configuration file** (`ansible.cfg`). You'll need to create one manually.
+
+---
+
+## **Step 1: Create the Ansible Config File**
+1. **On your Amazon Linux 2023 instance**, navigate to the Ansible directory or home folder:
+   ```sh
+   cd /etc/ansible  # Default location (may not exist in Amazon Linux 2023)
+   mkdir -p /etc/ansible
+   ```
+   
+2. **Create the `ansible.cfg` file**:
+   ```sh
+   sudo nano /etc/ansible/ansible.cfg
+   ```
+   
+3. **Add the following configuration settings**:
+
+   ```ini
+   [defaults]
+   inventory = /etc/ansible/hosts
+   remote_user = ec2-user
+   private_key_file = ~/.ssh/my-key.pem
+   host_key_checking = False
+   forks = 10
+   timeout = 30
+   log_path = /var/log/ansible.log
+   deprecation_warnings = False
+   retry_files_enabled = False
+
+   [privilege_escalation]
+   become = True
+   become_method = sudo
+   become_user = root
+   become_ask_pass = False
+   ```
+   - **`inventory`** → Specifies the path to your inventory file (`hosts` file).
+   - **`remote_user`** → Sets `ec2-user` as the SSH user for Amazon Linux.
+   - **`private_key_file`** → Path to your private key (update this based on your setup).
+   - **`host_key_checking = False`** → Prevents SSH key verification prompts.
+   - **`become = True`** → Enables privilege escalation (`sudo`).
+   - **`log_path = /var/log/ansible.log`** → Logs Ansible output to a file.
+
+4. **Save and exit** (`CTRL+X`, then `Y`, then `ENTER`).
+
+---
+
+## **Step 2: Verify the Configuration**
+Run:
+```sh
+ansible --version
+```
+If the **config file path** shows `/etc/ansible/ansible.cfg`, it's set up correctly.
+
+You can also test with:
+```sh
+ansible all -m ping
+```
+
+---
+
+## **Step 3: Create an Inventory File**
+Since Amazon Linux 2023 doesn’t include a default inventory file (`/etc/ansible/hosts`), create one:
+
+```sh
+sudo nano /etc/ansible/hosts
+```
+Add your **EC2 instances**:
+```ini
+[web]
+192.168.1.10
+
+[db]
+192.168.1.11
+
+[all:vars]
+ansible_user=ec2-user
+ansible_ssh_private_key_file=~/.ssh/my-key.pem
+```
+
+Save and test:
+```sh
+ansible web -m ping
+```
+
+---
+
+## **Final Notes**
+✅ The **config file ensures Ansible runs smoothly on Amazon Linux 2023**.  
+✅ **Inventory file** (`/etc/ansible/hosts`) helps manage multiple nodes.  
+✅ If Ansible still doesn't work, **check permissions**:
+```sh
+sudo chmod 644 /etc/ansible/ansible.cfg
+sudo chmod 644 /etc/ansible/hosts
+```
+
+Would you like to configure **Ansible to use AWS Systems Manager (SSM) instead of SSH**? 🚀
