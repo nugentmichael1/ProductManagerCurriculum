@@ -1,0 +1,111 @@
+Project: Automated Incident Response and Remediation System (
+
+Objective:
+
+This project builds on the basic monitoring system and introduces:
+
+1) Log analysis and categorization
+2)  ServiceNow integration for incident management
+3)  MySQL database for tracking incidents
+4)  Ansible automation for remediation
+5) Git for version control
+ 
+Real-Time Use Case Scenario:
+A company wants to automate incident detection and response based on system logs. The system should:
+Monitor server health and logs.
+Analyze logs for predefined error patterns.
+Categorize incidents based on known error messages.
+Log incidents in MySQL and create ServiceNow tickets.
+Trigger Ansible playbooks to resolve common issues.
+Track issue resolution and notify admins.
+
+User Stories for Automated Incident Response and Remediation System
+
+User Story 1: System Monitoring (Linux & Shell Scripting)
+Title: Monitor system resources and detect anomalies
+
+As a system administrator
+I want to monitor CPU, memory, and disk usage
+So that I can detect high resource usage and prevent system failures
+Acceptance Criteria:
+✅ A script runs every 5 minutes to check CPU, disk, and memory usage
+✅ If thresholds exceed defined limits, an alert is generated
+✅ The script triggers log analysis for further investigation
+
+User Story 2: Log Analysis and Incident Categorization (Python & Regex)
+Title: Analyze system logs for error patterns
+
+As a support engineer
+I want to analyze logs and categorize issues based on known patterns
+So that I can quickly identify and classify incidents
+Acceptance Criteria:
+✅ The system reads the last 10 log entries from /var/log/syslog
+✅ Predefined error patterns (e.g., "disk full", "out of memory") are matched using regular expressions
+✅ If a match is found, the issue is categorized accordingly
+
+User Story 3: Incident Logging in MySQL
+Title: Store incidents in a database
+
+As a database administrator
+I want to log detected incidents in a structured database
+So that I can track recurring issues and generate reports
+Acceptance Criteria:
+✅ A MySQL database stores logs, issue categories, and timestamps
+✅ Each new incident is added to the database
+✅ A history of past incidents can be queried for analysis
+
+User Story 4: ServiceNow Integration
+Title: Create an incident in ServiceNow
+
+As a IT support engineer
+I want to automatically generate an incident ticket in ServiceNow
+So that IT teams are notified of system issues
+Acceptance Criteria:
+✅ When an issue is detected, an API request is sent to ServiceNow
+✅ The ticket includes details like CPU usage, disk space, memory, and logs
+✅ The incident appears in the ServiceNow dashboard with the correct priority and category
+
+User Story 5: Automated Remediation using Ansible
+Title: Automatically resolve common incidents
+
+As a system administrator
+I want to trigger Ansible playbooks to fix common issues
+So that the system can recover without manual intervention
+Acceptance Criteria:
+✅ If an issue matches a known problem, an appropriate Ansible playbook is triggered
+✅ Playbooks can restart services, clear log files, or free up memory
+✅ Logs confirm that remediation actions were executed successfully
+
+User Story 6: Scheduled Execution (Cron Jobs)
+Title: Automate monitoring and remediation with scheduled jobs
+
+As a DevOps engineer
+I want to schedule system monitoring and remediation tasks
+So that they run automatically without manual execution
+Acceptance Criteria:
+✅ A cron job runs the monitoring script every 5 minutes
+✅ A cron job triggers the Ansible playbook when issues are detected
+✅ Logs confirm that scheduled jobs executed as expected
+
+User Story 7: Version Control with Git
+Title: Maintain project versions using Git
+
+As a developer
+I want to track changes to scripts and configurations using Git
+So that I can roll back to previous versions if needed
+Acceptance Criteria:
+✅ All scripts and playbooks are stored in a Git repository
+✅ Developers can commit, push, and pull changes
+✅ A history of changes is available for debugging and collaboration
+
+Bonus: User Story 8 - Notification System (Optional Enhancement)
+Title: Send email/SMS notifications for critical incidents
+
+As a IT manager
+I want to receive notifications when high-priority incidents occur
+So that I can take immediate action if necessary
+Acceptance Criteria:
+✅ If a critical incident is detected, an email or SMS notification is sent
+✅ Notifications include the issue description and a link to the ServiceNow ticket
+✅ The notification system can be enabled or disabled via configuration
+
