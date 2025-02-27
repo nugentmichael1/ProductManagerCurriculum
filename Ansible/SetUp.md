@@ -198,6 +198,7 @@ The **Amazon Linux 2023 AMI** does not come with a default **Ansible configurati
    log_path = /var/log/ansible.log
    deprecation_warnings = False
    retry_files_enabled = False
+   interpreter_python = /usr/bin/python3.9
 
    [privilege_escalation]
    become = True
