@@ -1,5 +1,5 @@
 ---
-- name: Install Python, MySQL, and Set Up System Metrics Database on Controller Nodes 
+- name: Install MySQL for System Metrics Database on Controller Nodes (2023 Amazon AMI)
   hosts: controllers
   become: yes
   tasks:
@@ -65,5 +65,21 @@
     - name: Display table creation result
       debug:
         var: table_list.query_result
+
+    - name: Allow MySQL to accept remote connections (bind-address)
+      lineinfile:
+        path: /etc/my.cnf.d/mariadb-server.cnf
+        regexp: '^#?bind-address'
+        line: 'bind-address=0.0.0.0'
+        state: present
+      notify: Restart MySQL Service
+
+  handlers:
+    - name: Restart MySQL
+      service:
+        name: mysqld
+        state: restarted
+      listen: Restart MySQL Service
+
 
 ...
