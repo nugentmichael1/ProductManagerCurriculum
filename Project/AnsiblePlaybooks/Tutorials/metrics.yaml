@@ -1,0 +1,66 @@
+---
+- name: Setup Linux Metrics Collection on Multiple Servers
+  hosts: slaves
+  become: yes
+  tasks:
+ 
+    - name: Install required packages
+      apt:
+        name:
+          - python3
+          - python3-pip
+        state: present
+ 
+    - name: Install Python dependencies
+      pip:
+        name:
+          - psutil
+          - mysql-connector-python
+ 
+    - name: Deploy Python Script for Metrics Collection
+      copy:
+        dest: /opt/linux_metrics.py
+        mode: "0755"
+        content: |
+          import psutil
+          import mysql.connector
+          from datetime import datetime
+          import socket
+ 
+          # Database Configuration (Central MySQL Server)
+          db_config = {
+              "host": "172.31.14.162",  # Change to Ansible Controller's IP
+              "user": "metrics_user",
+              "password": "1234",
+              "database": "system_metrics"
+          }
+ 
+          def get_system_metrics():
+              cpu_usage = psutil.cpu_percent(interval=1)
+              memory_usage = psutil.virtual_memory().percent
+              disk_usage = psutil.disk_usage('/').percent
+              hostname = socket.gethostname()
+              return hostname, cpu_usage, memory_usage, disk_usage
+ 
+          def insert_into_db(hostname, cpu, memory, disk):
+              try:
+                  conn = mysql.connector.connect(**db_config)
+                  cursor = conn.cursor()
+                  sql = "INSERT INTO metrics (server_name, cpu_usage, memory_usage, disk_usage) VALUES (%s, %s, %s, %s)"
+                  cursor.execute(sql, (hostname, cpu, memory, disk))
+                  conn.commit()
+                  cursor.close()
+                  conn.close()
+                  print(f"[{datetime.now()}] {hostname} - CPU={cpu}%, RAM={memory}%, Disk={disk}%")
+              except Exception as e:
+                  print("Database Error:", e)
+ 
+          if __name__ == "__main__":
+              hostname, cpu, memory, disk = get_system_metrics()
+              insert_into_db(hostname, cpu, memory, disk)
+ 
+    - name: Setup Cron Job for Data Collection
+      cron:
+        name: "Collect and Send Linux Metrics"
+        minute: "*/1"
+        job: "/usr/bin/python3 /opt/linux_metrics.py"

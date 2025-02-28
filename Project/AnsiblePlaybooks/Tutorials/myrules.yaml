@@ -1,0 +1,12 @@
+groups:
+  - name: my-rule
+    rules:
+      - record: job:node_memory_free_bytes_percentage
+        expr: 100- (100 * (node_memory_MemFree_bytes / node_memory_MemTotal_bytes))
+ 
+      - alert: Node_exporter_down
+        expr: up{job="node_exporter"} == 0
+ 
+      - alert: Node_exporter2_down
+        expr: up{job="node_exporter_2"} == 0
+ 
