@@ -1,5 +1,5 @@
 ---
-- name: Install Python, MySQL, and Set Up Server Metrics Database on Controller Node 
+- name: Install Python, MySQL, and Set Up System Metrics Database on Controller Nodes 
   hosts: controllers
   become: yes
   tasks:
@@ -54,4 +54,16 @@
             disk_usage FLOAT
           );
         login_unix_socket: /var/lib/mysql/mysql.sock
+
+    - name: Verify table creation - List tables in system_metrics database
+      community.mysql.mysql_query:
+        login_db: system_metrics
+        query: "SHOW TABLES;"
+        login_unix_socket: /var/lib/mysql/mysql.sock
+      register: table_list
+
+    - name: Display table creation result
+      debug:
+        var: table_list.query_result
+
 ...
