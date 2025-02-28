@@ -1,0 +1,57 @@
+---
+- name: Install Python, MySQL, and Set Up Server Metrics Database on Controller Node 
+  hosts: controllers
+  become: yes
+  tasks:
+
+    - name: Install Python, pip, and MariaDB (MySQL-compatible)
+      package:
+        name: 
+          - python3
+          - python3-pip
+          - mariadb105-server # alternative to mysql-server for amazon 2023 AMI
+        state: present
+
+    - name: Start and enable MariaDB service
+      service:
+        name: mariadb
+        state: started
+        enabled: yes
+
+    - name: Install required Python packages (MySQL Connector & PyMySQL)
+      pip:
+        name: 
+          - mysql-connector-python
+          - PyMySQL
+        state: present
+        executable: /usr/bin/pip3
+
+    - name: Create MySQL database (server_metrics) using UNIX socket authentication
+      community.mysql.mysql_db:
+        name: system_metrics
+        state: present
+        login_unix_socket: /var/lib/mysql/mysql.sock
+
+    - name: Create MySQL user (metrics_user) with restricted privileges using UNIX socket authentication
+      community.mysql.mysql_user:
+        name: metrics_user
+        password: "MySecurePassword"
+        priv: "system_metrics.*:ALL"
+        host: "%"
+        state: present
+        login_unix_socket: /var/lib/mysql/mysql.sock
+
+    - name: Create metrics table in server_metrics database
+      community.mysql.mysql_query:
+        login_db: system_metrics
+        query: | # Can abstrat this into an SQL file later
+          CREATE TABLE IF NOT EXISTS metrics (
+            id INT AUTO_INCREMENT PRIMARY KEY,
+            timestamp DATETIME DEFAULT CURRENT_TIMESTAMP,
+            server_name VARCHAR(255),
+            cpu_usage FLOAT,
+            memory_usage FLOAT,
+            disk_usage FLOAT
+          );
+        login_unix_socket: /var/lib/mysql/mysql.sock
+...
