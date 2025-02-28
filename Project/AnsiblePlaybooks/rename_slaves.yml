@@ -1,0 +1,23 @@
+---
+- name: Rename Slaves to Match Inventory Hostnames
+  hosts: slaves
+  become: yes
+  tasks:
+  
+    - name: Set the hostname using inventory name
+      hostname:
+        name: "{{ inventory_hostname }}"
+    
+    - name: Update /etc/hostname
+      copy:
+        dest: /etc/hostname
+        content: "{{ inventory_hostname }}\n"
+
+    - name: Update /etc/hosts
+      lineinfile:
+        path: /etc/hosts
+        regexp: "^127.0.0.1"
+        line: "127.0.0.1 {{ inventory_hostname }} localhost"
+    
+    - name: Reboot to apply hostname change
+      reboot:
