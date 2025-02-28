@@ -1,0 +1,21 @@
+---
+- name: Install Python
+  hosts: all
+  become: yes
+  tasks:
+
+    - name: Install Python
+      package:
+        name:
+          - python3
+          - python3-pip
+        state: present
+        update_cache: yes          
+
+    - name: Install Python dependencies
+      pip:
+        name:
+          - psutil
+          - mysql-connector-python
+          - prometheus_client
+        state: present
