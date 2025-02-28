@@ -1,0 +1,36 @@
+import psutil
+import mysql.connector
+from datetime import datetime
+import socket
+
+# Database Configuration (Central MySQL Server)
+db_config = {
+    "host": "{{ controller_ip }}", # Ansible will replace this before deployment
+    "user": "metrics_user",
+    "password": "MySecurePassword",
+    "database": "system_metrics"
+    }
+
+def get_system_metrics():
+    cpu_usage = psutil.cpu_percent(interval=1)
+    memory_usage = psutil.virtual_memory().percent
+    disk_usage = psutil.disk_usage('/').percent
+    hostname = socket.gethostname()
+    return hostname, cpu_usage, memory_usage, disk_usage
+
+def insert_into_db(hostname, cpu, memory, disk):
+    try:
+        conn = mysql.connector.connect(**db_config)
+        cursor = conn.cursor()
+        sql = "INSERT INTO metrics (server_name, cpu_usage, memory_usage, disk_usage) VALUES (%s, %s, %s, %s)"
+        cursor.execute(sql, (hostname, cpu, memory, disk))
+        conn.commit()
+        cursor.close()
+        conn.close()
+        print(f"[{datetime.now()}] {hostname} - CPU={cpu}%, RAM={memory}%, Disk={disk}%")
+    except Exception as e:
+        print("Database Error:", e)
+
+if __name__ == "__main__":
+    hostname, cpu, memory, disk = get_system_metrics()
+    insert_into_db(hostname, cpu, memory, disk)
