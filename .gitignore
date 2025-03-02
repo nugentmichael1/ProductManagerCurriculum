@@ -6,5 +6,5 @@ Project/ToDo.odt
 *.jpg
 *.png
 *.webp
-Project/AnsiblePlaybooks/.env
 Project/Backups/*
+.env
