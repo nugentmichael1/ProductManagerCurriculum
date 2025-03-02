@@ -1,0 +1,110 @@
+---
+- name: Install Prometheus Alertmanager on Amazon Linux 2023
+  hosts: controller
+  become: yes
+  vars:
+    alertmanager_version: "0.28.0"  # Change to latest version if needed
+    alertmanager_user: "alertmanager"
+    install_dir: "/usr/local/bin"
+    config_dir: "/etc/alertmanager"
+    data_dir: "/var/lib/alertmanager"
+    email_password: "{{ alertmanager_email_password }}" # Change in /etc/ansible/global_vars/all.yml
+
+  tasks:
+    - name: Update and install dependencies
+      yum:
+        name: curl-minimal # Amazon 2023 AMI curl alternative
+        state: present
+
+    - name: Create a dedicated system user for Alertmanager
+      user:
+        name: "{{ alertmanager_user }}"
+        system: yes
+        createhome: no
+        shell: /sbin/nologin
+
+    - name: Download Alertmanager
+      get_url:
+        url: "https://github.com/prometheus/alertmanager/releases/download/v{{ alertmanager_version }}/alertmanager-{{ alertmanager_version }}.linux-amd64.tar.gz"
+        dest: "/tmp/alertmanager.tar.gz"
+        mode: '0644'
+
+    - name: Extract Alertmanager
+      unarchive:
+        src: "/tmp/alertmanager.tar.gz"
+        dest: "/tmp"
+        remote_src: yes
+        extra_opts: [--strip-components=1]
+
+    - name: Move Alertmanager binaries to install directory
+      copy:
+        src: "/tmp/{{ item }}"
+        dest: "{{ install_dir }}/{{ item }}"
+        mode: '0755'
+        remote_src: yes
+      loop:
+        - alertmanager
+        - amtool
+
+    - name: Ensure Alertmanager directories exist
+      file:
+        path: "{{ item }}"
+        state: directory
+        owner: "{{ alertmanager_user }}"
+        group: "{{ alertmanager_user }}"
+        mode: '0755'
+      loop:
+        - "{{ config_dir }}"
+        - "{{ data_dir }}"
+
+    - name: Create Alertmanager configuration file
+      copy:
+        dest: "{{ config_dir }}/alertmanager.yml"
+        content: |
+          global:
+            resolve_timeout: 5m
+
+          route:
+            receiver: 'default-receiver'
+
+          receivers:
+            - name: 'default-receiver'
+              email_configs:
+                - to: 'nugentmichael172@gmail.com'
+                  from: 'nugentmichael172@gmail.com'
+                  smarthost: 'smtp.office365.com:587'
+                  auth_username: 'nugentmichael172@gmail.com'
+                  auth_password: "{{ email_password }}"
+                  auth_identity: 'nugentmichael172@gmail.com'
+        owner: "{{ alertmanager_user }}"
+        group: "{{ alertmanager_user }}"
+        mode: '0644'
+
+    - name: Create Alertmanager systemd service
+      copy:
+        dest: "/etc/systemd/system/alertmanager.service"
+        content: |
+          [Unit]
+          Description=Prometheus Alertmanager
+          After=network.target
+
+          [Service]
+          User={{ alertmanager_user }}
+          ExecStart={{ install_dir }}/alertmanager \
+            --config.file={{ config_dir }}/alertmanager.yml \
+            --storage.path={{ data_dir }}
+          Restart=always
+
+          [Install]
+          WantedBy=multi-user.target
+        mode: '0644'
+
+    - name: Reload systemd daemon
+      systemd:
+        daemon_reload: yes
+
+    - name: Start and enable Alertmanager service
+      systemd:
+        name: alertmanager
+        state: started
+        enabled: yes
