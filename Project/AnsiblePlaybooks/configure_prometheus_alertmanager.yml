@@ -1,0 +1,57 @@
+---
+- name: Configure Prometheus and Alertmanager Integration
+  hosts: controllers
+  become: yes
+  vars:
+    prometheus_config: "/etc/prometheus/prometheus.yml"
+    alert_rules_file: "/etc/prometheus/alert.rules.yml"
+
+  tasks:
+
+    - name: Ensure required directories exist
+      file:
+        path: "{{ item }}"
+        state: directory
+        mode: '0755'
+      loop:
+        - "/etc/prometheus"
+        - "/etc/alertmanager"
+
+    - name: Ensure Alerting Configuration Exists in Prometheus Config
+      blockinfile:
+        path: "{{ prometheus_config }}"
+        block: |
+          alerting:
+            alertmanagers:
+              - static_configs:
+                  - targets:
+                      - "localhost:9093"
+
+          rule_files:
+            - "{{ alert_rules_file }}"
+        insertafter: EOF
+      notify: Restart Prometheus
+
+    - name: Deploy alerting rules
+      copy:
+        dest: "{{ alert_rules_file }}"
+        content: |
+          groups:
+            - name: instance_health
+              rules:
+                - alert: InstanceDown
+                  expr: up == 0
+                  for: 1m
+                  labels:
+                    severity: critical
+                  annotations:
+                    summary: "Instance {{ $labels.instance }} is down"
+                    description: "The instance {{ $labels.instance }} has been unreachable for more than 1 minute."
+      notify: Restart Prometheus
+
+  handlers:
+    - name: Restart Prometheus
+      systemd:
+        name: prometheus
+        state: restarted
+        enabled: yes
