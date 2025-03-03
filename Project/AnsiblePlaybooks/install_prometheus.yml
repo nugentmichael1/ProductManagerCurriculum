@@ -1,0 +1,137 @@
+---
+- name: Install and Set Up Prometheus
+  hosts: controllers
+  become: true
+  vars:
+    prometheus_version: "2.47.2"
+    prometheus_user: "prometheus"
+    prometheus_group: "prometheus"
+    prometheus_install_dir: "/opt/prometheus"
+    prometheus_data_dir: "/var/lib/prometheus"
+    prometheus_config_dir: "/etc/prometheus"
+    prometheus_service_file: "/etc/systemd/system/prometheus.service"
+
+  tasks:
+    - name: Install required packages
+      yum:
+        name:
+          - wget
+          - tar
+        state: present
+
+    - name: Create Prometheus user
+      user:
+        name: "{{ prometheus_user }}"
+        system: yes
+        create_home: no
+        shell: /sbin/nologin
+
+    - name: Download Prometheus
+      get_url:
+        url: "https://github.com/prometheus/prometheus/releases/download/v{{ prometheus_version }}/prometheus-{{ prometheus_version }}.linux-amd64.tar.gz"
+        dest: "/tmp/prometheus.tar.gz"
+        mode: '0644'
+
+    - name: Extract Prometheus
+      ansible.builtin.unarchive:
+        src: "/tmp/prometheus.tar.gz"
+        dest: "/tmp/"
+        remote_src: yes
+
+    - name: Create Prometheus directories
+      file:
+        path: "{{ item }}"
+        state: directory
+        owner: "{{ prometheus_user }}"
+        group: "{{ prometheus_group }}"
+        mode: '0755'
+      loop:
+        - "{{ prometheus_install_dir }}"
+        - "{{ prometheus_data_dir }}"
+        - "{{ prometheus_config_dir }}"
+
+    - name: Move Prometheus binaries
+      command: mv /tmp/prometheus-{{ prometheus_version }}.linux-amd64/{{ item }} /usr/local/bin/
+      args:
+        creates: "/usr/local/bin/{{ item }}"
+      loop:
+        - prometheus
+        - promtool
+
+    - name: Set permissions for binaries
+      file:
+        path: "/usr/local/bin/{{ item }}"
+        owner: "{{ prometheus_user }}"
+        group: "{{ prometheus_group }}"
+        mode: '0755'
+      loop:
+        - prometheus
+        - promtool
+
+    - name: Move Prometheus config files
+      command: mv /tmp/prometheus-{{ prometheus_version }}.linux-amd64/{{ item }} "{{ prometheus_config_dir }}/"
+      args:
+        creates: "{{ prometheus_config_dir }}/{{ item }}"
+      loop:
+        - prometheus.yml
+        - consoles
+        - console_libraries
+
+    - name: Set permissions for config directory
+      file:
+        path: "{{ prometheus_config_dir }}"
+        owner: "{{ prometheus_user }}"
+        group: "{{ prometheus_group }}"
+        mode: '0755'
+        recurse: yes
+
+    - name: Configure Prometheus YAML file
+      copy:
+        dest: "{{ prometheus_config_dir }}/prometheus.yml"
+        content: |
+          global:
+            scrape_interval: 15s
+            evaluation_interval: 15s
+
+          scrape_configs:
+            - job_name: "prometheus"
+              static_configs:
+                - targets: ["localhost:9090"]
+        owner: "{{ prometheus_user }}"
+        group: "{{ prometheus_group }}"
+        mode: '0644'
+
+    - name: Create systemd service file for Prometheus
+      copy:
+        dest: "{{ prometheus_service_file }}"
+        content: |
+          [Unit]
+          Description=Prometheus Time Series Collection and Processing Server
+          Wants=network-online.target
+          After=network-online.target
+
+          [Service]
+          User={{ prometheus_user }}
+          Group={{ prometheus_group }}
+          Type=simple
+          ExecStart=/usr/local/bin/prometheus \
+            --config.file={{ prometheus_config_dir }}/prometheus.yml \
+            --storage.tsdb.path={{ prometheus_data_dir }} \
+            --web.listen-address=0.0.0.0:9090 \
+            --web.enable-lifecycle
+
+          Restart=always
+
+          [Install]
+          WantedBy=multi-user.target
+        mode: '0644'
+
+    - name: Reload systemd daemon
+      systemd:
+        daemon_reload: yes
+
+    - name: Enable and start Prometheus service
+      systemd:
+        name: prometheus
+        enabled: yes
+        state: started
