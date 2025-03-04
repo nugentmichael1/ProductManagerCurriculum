@@ -1,0 +1,133 @@
+---
+- name: Install and Configure Prometheus
+  hosts: con
+  become: yes  # Run tasks as root
+
+  vars:
+    prometheus_version: "2.53.3"
+    prometheus_archive: "prometheus-{{ prometheus_version }}.linux-amd64.tar.gz"
+    prometheus_url: "https://github.com/prometheus/prometheus/releases/download/v{{ prometheus_version }}/{{ prometheus_archive }}"
+    prometheus_user: "prometheus"
+    prometheus_dir: "/etc/prometheus"
+
+  tasks:
+    - name: Update package lists
+      apt:
+        update_cache: yes
+
+    - name: Install required dependencies
+      apt:
+        name:
+          - wget
+          - tar
+          - nano
+        state: present
+
+    - name: Download Prometheus
+      get_url:
+        url: "{{ prometheus_url }}"
+        dest: "/home/ubuntu/{{ prometheus_archive }}"
+
+    - name: Extract Prometheus
+      ansible.builtin.unarchive:
+        src: "/home/ubuntu/{{ prometheus_archive }}"
+        dest: "/home/ubuntu"
+        remote_src: yes
+
+    - name: Remove Prometheus archive
+      file:
+        path: "/home/ubuntu/{{ prometheus_archive }}"
+        state: absent
+
+    - name: Rename extracted folder to prometheus
+      command: mv /home/ubuntu/prometheus-{{ prometheus_version }}.linux-amd64 /home/ubuntu/prometheus
+
+    - name: Create Prometheus system user
+      user:
+        name: "{{ prometheus_user }}"
+        system: yes
+        shell: /bin/false
+        create_home: no
+
+    - name: Create Prometheus directories
+      file:
+        path: "{{ item }}"
+        state: directory
+        owner: "{{ prometheus_user }}"
+        group: "{{ prometheus_user }}"
+        mode: "0755"
+      loop:
+        - "{{ prometheus_dir }}"
+        - "/var/lib/prometheus"
+
+    - name: Copy Prometheus binaries to /usr/local/bin
+      copy:
+        src: "/home/ubuntu/prometheus/{{ item }}"
+        dest: "/usr/local/bin/{{ item }}"
+        owner: "{{ prometheus_user }}"
+        group: "{{ prometheus_user }}"
+        mode: "0755"
+        remote_src: yes
+      loop:
+        - prometheus
+        - promtool
+
+    - name: Copy consoles and libraries to /etc/prometheus
+      copy:
+        src: "/home/ubuntu/prometheus/{{ item }}"
+        dest: "{{ prometheus_dir }}/{{ item }}"
+        owner: "{{ prometheus_user }}"
+        group: "{{ prometheus_user }}"
+        mode: "0755"
+        remote_src: yes
+      loop:
+        - consoles
+        - console_libraries
+
+    - name: Create Prometheus systemd service
+      copy:
+        dest: /etc/systemd/system/prometheus.service
+        content: |
+          [Unit]
+          Description=Prometheus
+          Wants=network-online.target
+          After=network-online.target
+
+          [Service]
+          User=prometheus
+          Group=prometheus
+          Type=simple
+          ExecStart=/usr/local/bin/prometheus \
+            --config.file /etc/prometheus/prometheus.yml \
+            --storage.tsdb.path /var/lib/prometheus/ \
+            --web.console.templates=/etc/prometheus/consoles \
+            --web.console.libraries=/etc/prometheus/console_libraries
+
+          [Install]
+          WantedBy=multi-user.target
+          
+    - name: Copy Prometheus directory to /etc/prometheus
+      ansible.builtin.copy:
+        src: /home/ubuntu/prometheus/
+        dest: /etc/prometheus
+        owner: prometheus
+        group: prometheus
+        mode: '0755'
+        remote_src: yes
+
+    - name: Reload systemd, enable and start Prometheus service
+      systemd:
+        daemon_reload: yes
+        name: prometheus
+        enabled: yes
+        state: started
+
+    - name: Check Prometheus service status
+      command: systemctl status prometheus
+      register: prometheus_status
+      changed_when: false
+
+    - name: Debug Prometheus status
+      debug:
+        msg: "{{ prometheus_status.stdout_lines }}"
+...
